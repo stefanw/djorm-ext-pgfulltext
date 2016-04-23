@@ -1,14 +1,16 @@
 # -*- coding: utf-8 -*-
+import re
 from itertools import repeat
-import six
 
-from django.db import models, connections
+import six
+from django.db import connections, models
 from django.db.models.query import QuerySet
 from django.utils.encoding import smart_text
 
 from djorm_pgfulltext.utils import adapt
 
 # Compatibility import and fixes section.
+strip_non_alphanumeric = re.compile('[\W_]+', re.UNICODE)
 
 try:
     from django.db.transaction import atomic
@@ -172,6 +174,12 @@ class SearchManagerMixIn(object):
             )
 
         search_vector = self._get_search_vector(config, using, fields=fields, extra=extra)
+        if extra:
+            # extra var isn't used so we are using it here to provide
+            # additional document (text) to add to our tsvector
+            search_vector = "%s || setweight(to_tsvector('%s'), 'D')" % (
+                search_vector, re.sub(strip_non_alphanumeric, ' ', extra)
+            )
         sql = "UPDATE %s SET %s = %s %s;" % (
             qn(self.model._meta.db_table),
             qn(search_field),
