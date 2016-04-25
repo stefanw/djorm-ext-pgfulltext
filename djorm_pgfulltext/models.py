@@ -178,9 +178,7 @@ class SearchManagerMixIn(object):
         if extra:
             # extra var isn't used so we are using it here to provide
             # additional document (text) to add to our tsvector
-            search_vector = "%s || setweight(to_tsvector('%s'), 'D')" % (
-                search_vector, re.sub(strip_non_alphanumeric, ' ', extra)
-            )
+            search_vector = "%s %s" % (search_vector, extra)
         sql = "UPDATE %s SET %s = %s %s;" % (
             qn(self.model._meta.db_table),
             qn(search_field),
