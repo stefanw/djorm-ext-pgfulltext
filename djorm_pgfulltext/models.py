@@ -97,7 +97,8 @@ class SearchManagerMixIn(object):
         self.default_weight = 'D'
         self.config = config
         self.auto_update_search_field = auto_update_search_field
-        self._fields = fields
+        if not hasattr(self, '_fields') or fields:
+            self._fields = fields
 
         super(SearchManagerMixIn, self).__init__()
 
