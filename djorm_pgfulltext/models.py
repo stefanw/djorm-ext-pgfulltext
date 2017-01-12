@@ -3,10 +3,10 @@ import re
 from itertools import repeat
 
 import six
+
 from django.db import connections, models
 from django.db.models.query import QuerySet
 from django.utils.encoding import smart_text
-
 from djorm_pgfulltext.utils import adapt
 
 # Compatibility import and fixes section.
@@ -23,6 +23,7 @@ except ImportError:
     from django.db import transaction
 
     class atomic(object):
+
         def __init__(self, using=None):
             self.using = using
 
@@ -102,7 +103,7 @@ class SearchManagerMixIn(object):
 
         super(SearchManagerMixIn, self).__init__()
 
-    def contribute_to_class(self, cls, name):
+    def contribute_to_class(self, cls, name, **kwargs):
         '''
         Called automatically by Django when setting up the model class.
         '''
@@ -111,7 +112,8 @@ class SearchManagerMixIn(object):
             if not getattr(cls, '_fts_manager', None):
                 cls._fts_manager = self
 
-            # Add 'update_search_field' instance method, that calls manager's update_search_field.
+            # Add 'update_search_field' instance method, that calls manager's
+            # update_search_field.
             if not getattr(cls, 'update_search_field', None):
                 def update_search_field(self, search_field=None, fields=None, using=None, config=None, extra=None):
                     self._fts_manager.update_search_field(
@@ -121,9 +123,11 @@ class SearchManagerMixIn(object):
                 setattr(cls, 'update_search_field', update_search_field)
 
             if self.auto_update_search_field:
-                models.signals.post_save.connect(auto_update_search_field_handler, sender=cls)
+                models.signals.post_save.connect(
+                    auto_update_search_field_handler, sender=cls
+                )
 
-        super(SearchManagerMixIn, self).contribute_to_class(cls, name)
+        super(SearchManagerMixIn, self).contribute_to_class(cls, name, **kwargs)
 
     def get_queryset(self):
         return SearchQuerySet(model=self.model, using=self._db)
@@ -211,7 +215,9 @@ class SearchManagerMixIn(object):
                 parsed_fields.update([(x, None) for x in fields])
 
             # Does not support field.attname.
-            field_names = set(field.name for field in self.model._meta.fields if not field.primary_key)
+            field_names = set(
+                field.name for field in self.model._meta.fields if not field.primary_key
+            )
             non_model_fields = set(x[0] for x in parsed_fields).difference(field_names)
             if non_model_fields:
                 raise ValueError("The following fields do not exist in this"
@@ -234,7 +240,9 @@ class SearchManagerMixIn(object):
         for config in configs:
             for field_name, weight in vector_fields:
                 search_vector.append(
-                    self._get_vector_for_field(field_name, weight=weight, config=config, using=using, extra=extra)
+                    self._get_vector_for_field(
+                        field_name, weight=weight, config=config, using=using, extra=extra
+                    )
                 )
         return ' || '.join(search_vector)
 
@@ -253,7 +261,9 @@ class SearchManagerMixIn(object):
         ret = None
 
         if hasattr(self.model, '_convert_field_to_db'):
-            ret = self.model._convert_field_to_db(field, weight, config, using, extra=extra)
+            ret = self.model._convert_field_to_db(
+                field, weight, config, using, extra=extra
+            )
 
         if ret is None:
             ret = self._convert_field_to_db(field, weight, config, using, extra=extra)
@@ -270,13 +280,10 @@ class SearchManagerMixIn(object):
 
 
 class SearchQuerySet(QuerySet):
+
     @property
     def manager(self):
         return self.model._fts_manager
-
-    @property
-    def db(self):
-        return self._db or self.manager.db
 
     def search(self, query, rank_field=None, rank_function='ts_rank', config=None,
                rank_normalization=32, raw=False, using=None, fields=None,
@@ -331,7 +338,9 @@ class SearchQuerySet(QuerySet):
             # these fields. In other case, intent use of search_field if
             # exists.
             if fields:
-                search_vector = self.manager._get_search_vector(config, using, fields=fields)
+                search_vector = self.manager._get_search_vector(
+                    config, using, fields=fields
+                )
             else:
                 if not self.manager.search_field:
                     raise ValueError("search_field is not specified")
